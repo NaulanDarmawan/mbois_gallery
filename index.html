@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Katalog Bunga</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+    <style>
+        .modal { display: none; }
+    </style>
+</head>
+<body class="bg-gray-100 font-sans">
+
+    <div class="container mx-auto p-4 md:p-8">
+        <h1 class="text-3xl md:text-4xl font-bold text-gray-800 mb-6 text-center">🌸 Katalog Bunga Digital 🌸</h1>
+
+        <div class="bg-white p-6 rounded-lg shadow-lg mb-8">
+            <h2 class="text-2xl font-semibold mb-4">Tambah Bunga Baru</h2>
+            <form id="flower-form">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <input type="text" name="nama" placeholder="Nama Bunga" class="p-3 border rounded-md" required>
+                    <input type="number" name="harga" placeholder="Harga (Rp)" class="p-3 border rounded-md" required>
+                    <input type="text" name="asal_kampung" placeholder="Asal Kampung" class="p-3 border rounded-md">
+                    <textarea name="deskripsi" placeholder="Deskripsi Bunga" class="p-3 border rounded-md md:col-span-2" rows="3"></textarea>
+                    <div class="md:col-span-2">
+                        <label class="block mb-2 text-sm font-medium text-gray-700">Upload Gambar (Max 5)</label>
+                        <input type="file" name="gambar" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-violet-50 file:text-violet-700 hover:file:bg-violet-100" multiple>
+                    </div>
+                </div>
+                <button type="submit" class="w-full mt-4 bg-violet-600 text-white font-bold py-3 px-4 rounded-md hover:bg-violet-700 transition duration-300">Simpan Data</button>
+            </form>
+        </div>
+
+        <div>
+            <h2 class="text-2xl font-semibold mb-4">Daftar Bunga</h2>
+            <input type="text" id="filter-asal" placeholder="Filter berdasarkan asal kampung..." class="w-full p-3 border rounded-md mb-4">
+            <div id="flower-list" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                </div>
+        </div>
+    </div>
+
+    <div id="qr-modal" class="modal fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
+        <div class="bg-white p-8 rounded-lg shadow-xl text-center">
+            <h3 class="text-xl font-bold mb-4">QR Code Bunga</h3>
+            <p class="text-sm text-gray-600 mb-4">Scan untuk membuka halaman detail.</p>
+            <div id="qr-code-container" class="flex justify-center mb-6"></div>
+            <button class="close-modal bg-gray-500 text-white py-2 px-6 rounded hover:bg-gray-600">Tutup</button>
+        </div>
+    </div>
+
+    <div id="edit-modal" class="modal fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
+        <div class="bg-white p-8 rounded-lg shadow-xl w-full max-w-lg">
+            <h3 class="text-xl font-bold mb-4">Edit Detail Bunga</h3>
+            <form id="edit-flower-form">
+                <input type="hidden" name="id">
+                <div class="space-y-4">
+                    <input type="text" name="nama" placeholder="Nama Bunga" class="w-full p-3 border rounded-md" required>
+                    <input type="number" name="harga" placeholder="Harga (Rp)" class="w-full p-3 border rounded-md" required>
+                    <input type="text" name="asal_kampung" placeholder="Asal Kampung" class="w-full p-3 border rounded-md">
+                    <textarea name="deskripsi" placeholder="Deskripsi Bunga" class="w-full p-3 border rounded-md" rows="3"></textarea>
+                </div>
+                <div class="mt-6 flex justify-end gap-4">
+                     <button type="button" class="close-modal bg-gray-300 text-gray-800 py-2 px-6 rounded hover:bg-gray-400">Batal</button>
+                    <button type="submit" class="bg-violet-600 text-white font-bold py-2 px-6 rounded hover:bg-violet-700">Update Data</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // GANTI DENGAN URL GOOGLE APPS SCRIPT ANDA
+        const SCRIPT_URL = "https://script.google.com/macros/s/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx/exec";
+
+        const flowerForm = document.getElementById('flower-form');
+        const flowerList = document.getElementById('flower-list');
+        const filterInput = document.getElementById('filter-asal');
+        const qrModal = document.getElementById('qr-modal');
+        const editModal = document.getElementById('edit-modal');
+        const qrContainer = document.getElementById('qr-code-container');
+        const editForm = document.getElementById('edit-flower-form');
+
+        let allFlowers = [];
+
+        const fetchFlowers = async () => {
+            try {
+                flowerList.innerHTML = '<p class="col-span-full text-center">Memuat data bunga...</p>';
+                const response = await fetch(`${SCRIPT_URL}?action=readAll`);
+                allFlowers = await response.json();
+                renderFlowers(allFlowers);
+            } catch (error) {
+                console.error('Error fetching flowers:', error);
+                flowerList.innerHTML = '<p class="col-span-full text-center text-red-500">Gagal memuat data bunga.</p>';
+            }
+        };
+
+        const renderFlowers = (flowers) => {
+            flowerList.innerHTML = '';
+            if (flowers.length === 0) {
+                flowerList.innerHTML = '<p class="col-span-full text-center text-gray-500">Belum ada data bunga.</p>';
+                return;
+            }
+            flowers.forEach(flower => {
+                const images = JSON.parse(flower.gambar || '[]');
+                // **INI PERBAIKAN URL GAMBAR**
+                const firstImage = images.length > 0 ? `https://lh3.googleusercontent.com/d/${images[0]}` : 'https://via.placeholder.com/300';
+
+                const card = `
+                    <div class="bg-white rounded-lg shadow-md overflow-hidden flex flex-col">
+                        <img src="${firstImage}" alt="${flower.nama}" class="w-full h-48 object-cover">
+                        <div class="p-4 flex-grow">
+                            <h3 class="font-bold text-xl mb-1">${flower.nama}</h3>
+                            <p class="text-gray-600 text-sm mb-2">Asal: ${flower.asal_kampung || '-'}</p>
+                            <p class="text-violet-600 font-semibold">Rp ${new Intl.NumberFormat('id-ID').format(flower.harga)}</p>
+                        </div>
+                        <div class="p-2 bg-gray-50 border-t grid grid-cols-2 gap-2 text-sm">
+                            <a href="detail.html?id=${flower.id}" target="_blank" class="text-center py-2 px-3 bg-gray-200 rounded hover:bg-gray-300">Detail</a>
+                            <button data-action="show-qr" data-id="${flower.id}" class="py-2 px-3 bg-gray-200 rounded hover:bg-gray-300">QR Code</button>
+                            <button data-action="edit" data-id="${flower.id}" class="py-2 px-3 bg-blue-500 text-white rounded hover:bg-blue-600">Edit</button>
+                            <button data-action="delete" data-id="${flower.id}" class="py-2 px-3 bg-red-500 text-white rounded hover:bg-red-600">Hapus</button>
+                        </div>
+                    </div>`;
+                flowerList.innerHTML += card;
+            });
+        };
+
+        const toBase64 = file => new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = error => reject(error);
+        });
+
+        const showSpinner = (button, text = 'Memproses...') => {
+            button.disabled = true;
+            button.innerHTML = `<svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> ${text}`;
+        };
+
+        const hideSpinner = (button, originalText) => {
+            button.disabled = false;
+            button.innerHTML = originalText;
+        };
+
+        flowerForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const submitButton = e.target.querySelector('button[type="submit"]');
+            const originalButtonText = submitButton.innerHTML;
+            showSpinner(submitButton, 'Menyimpan...');
+
+            let imagePayloads = [];
+            for (let file of e.target.gambar.files) {
+                const base64 = await toBase64(file);
+                imagePayloads.push({ base64, type: file.type, name: file.name });
+            }
+
+            const formData = {
+                nama: e.target.nama.value,
+                harga: e.target.harga.value,
+                deskripsi: e.target.deskripsi.value,
+                asal_kampung: e.target.asal_kampung.value,
+                images: imagePayloads
+            };
+
+            try {
+                await fetch(SCRIPT_URL, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    body: JSON.stringify(formData)
+                });
+                setTimeout(() => {
+                    alert('Data berhasil disimpan! Daftar akan diperbarui.');
+                    flowerForm.reset();
+                    fetchFlowers();
+                    hideSpinner(submitButton, originalButtonText);
+                }, 3000);
+            } catch (error) {
+                alert('Terjadi kesalahan. Coba lagi.');
+                hideSpinner(submitButton, originalButtonText);
+            }
+        });
+
+        flowerList.addEventListener('click', async (e) => {
+            const button = e.target.closest('button');
+            if (!button) return;
+
+            const action = button.dataset.action;
+            const id = button.dataset.id;
+
+            if (action === 'delete') {
+                if (confirm(`Yakin ingin menghapus bunga ini? Aksi ini tidak bisa dibatalkan.`)) {
+                    showSpinner(button, 'Menghapus...');
+                    const payload = { action: 'delete', payload: { id } };
+                    await fetch(SCRIPT_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(payload) });
+                    setTimeout(() => {
+                        alert('Berhasil dihapus.');
+                        fetchFlowers();
+                    }, 2000);
+                }
+            }
+
+            if (action === 'edit') {
+                const flower = allFlowers.find(f => f.id == id);
+                if(flower) {
+                    editForm.id.value = flower.id;
+                    editForm.nama.value = flower.nama;
+                    editForm.harga.value = flower.harga;
+                    editForm.asal_kampung.value = flower.asal_kampung;
+                    editForm.deskripsi.value = flower.deskripsi;
+                    editModal.style.display = 'flex';
+                }
+            }
+
+            if (action === 'show-qr') {
+                const detailUrl = new URL(`detail.html?id=${id}`, window.location.href).href;
+                qrContainer.innerHTML = '';
+                new QRCode(qrContainer, { text: detailUrl, width: 200, height: 200 });
+                qrModal.style.display = 'flex';
+            }
+        });
+
+        editForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const submitButton = e.target.querySelector('button[type="submit"]');
+            const originalButtonText = submitButton.innerHTML;
+            showSpinner(submitButton, 'Mengupdate...');
+
+            const payload = {
+                action: 'update',
+                payload: {
+                    id: e.target.id.value,
+                    nama: e.target.nama.value,
+                    harga: e.target.harga.value,
+                    deskripsi: e.target.deskripsi.value,
+                    asal_kampung: e.target.asal_kampung.value,
+                }
+            };
+            await fetch(SCRIPT_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(payload) });
+            setTimeout(() => {
+                alert('Berhasil diupdate.');
+                editModal.style.display = 'none';
+                hideSpinner(submitButton, originalButtonText);
+                fetchFlowers();
+            }, 2000);
+        });
+
+        filterInput.addEventListener('input', (e) => {
+            const query = e.target.value.toLowerCase();
+            const filtered = allFlowers.filter(f => (f.asal_kampung || '').toLowerCase().includes(query));
+            renderFlowers(filtered);
+        });
+
+        document.querySelectorAll('.close-modal').forEach(btn => {
+            btn.addEventListener('click', () => {
+                btn.closest('.modal').style.display = 'none';
+            });
+        });
+
+        fetchFlowers();
+    });
+    </script>
+</body>
+</html>

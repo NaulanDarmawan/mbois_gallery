@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Detail Bunga</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css"/>
+    <script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
+    <style>
+        .swiper-button-next, .swiper-button-prev {
+            color: #8b5cf6; /* Warna violet */
+        }
+        .swiper-pagination-bullet-active {
+            background-color: #8b5cf6;
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+
+    <div id="loading" class="text-center p-10 text-xl">Memuat data bunga...</div>
+
+    <div id="flower-detail" class="container mx-auto max-w-4xl my-8 p-4 bg-white rounded-lg shadow-lg hidden">
+        </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            // GANTI DENGAN URL GOOGLE APPS SCRIPT ANDA
+            const SCRIPT_URL = "https://script.google.com/macros/s/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx/exec";
+
+            const flowerDetailContainer = document.getElementById('flower-detail');
+            const loadingIndicator = document.getElementById('loading');
+
+            const params = new URLSearchParams(window.location.search);
+            const flowerId = params.get('id');
+
+            if (!flowerId) {
+                loadingIndicator.innerHTML = '<p class="text-red-500">Error: ID Bunga tidak ditemukan di URL.</p>';
+                return;
+            }
+
+            try {
+                const response = await fetch(`${SCRIPT_URL}?action=readById&id=${flowerId}`);
+                if (!response.ok) {
+                    throw new Error('Data bunga tidak ditemukan.');
+                }
+                const flower = await response.json();
+
+                document.title = `Detail: ${flower.nama}`;
+
+                const images = JSON.parse(flower.gambar || '[]');
+                let imageHtml = '';
+
+                // **INI PERBAIKAN URL GAMBAR**
+                const driveBaseUrl = 'https://lh3.googleusercontent.com/d/';
+
+                if (images.length > 1) {
+                    imageHtml = `
+                        <div class="swiper w-full rounded-lg">
+                            <div class="swiper-wrapper">
+                                ${images.map(imgId => `<div class="swiper-slide"><img src="${driveBaseUrl}${imgId}" alt="${flower.nama}" class="w-full h-96 object-cover"></div>`).join('')}
+                            </div>
+                            <div class="swiper-button-prev"></div>
+                            <div class="swiper-button-next"></div>
+                            <div class="swiper-pagination"></div>
+                        </div>
+                    `;
+                } else if (images.length === 1) {
+                    imageHtml = `<img src="${driveBaseUrl}${images[0]}" alt="${flower.nama}" class="w-full h-96 object-cover rounded-lg">`;
+                } else {
+                    imageHtml = `<div class="w-full h-96 flex items-center justify-center bg-gray-200 rounded-lg"><p>Tidak ada gambar</p></div>`;
+                }
+
+                flowerDetailContainer.innerHTML = `
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <div>
+                            ${imageHtml}
+                        </div>
+                        <div>
+                            <h1 class="text-4xl font-extrabold text-gray-900 mb-2">${flower.nama}</h1>
+                            <p class="text-lg text-gray-500 mb-4">Asal: <span class="font-semibold">${flower.asal_kampung || '-'}</span></p>
+                            <p class="text-3xl font-bold text-violet-600 mb-6">Rp ${new Intl.NumberFormat('id-ID').format(flower.harga)}</p>
+                            <h2 class="text-xl font-semibold mb-2">Deskripsi</h2>
+                            <p class="text-gray-700 leading-relaxed">${flower.deskripsi || 'Tidak ada deskripsi.'}</p>
+                            <a href="./index.html" class="inline-block mt-6 text-violet-600 hover:text-violet-800">&larr; Kembali ke Katalog</a>
+                        </div>
+                    </div>
+                `;
+
+                loadingIndicator.style.display = 'none';
+                flowerDetailContainer.classList.remove('hidden');
+
+                if (images.length > 1) {
+                    new Swiper('.swiper', {
+                        loop: true,
+                        pagination: { el: '.swiper-pagination', clickable: true },
+                        navigation: {
+                            nextEl: '.swiper-button-next',
+                            prevEl: '.swiper-button-prev',
+                        },
+                    });
+                }
+
+            } catch (error) {
+                loadingIndicator.innerHTML = `<p class="text-red-500">Error: ${error.message}</p>`;
+            }
+        });
+    </script>
+</body>
+</html>
