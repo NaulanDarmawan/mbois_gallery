@@ -40,33 +40,8 @@
         </div>
     </div>
 
-    <div id="qr-modal" class="modal fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
-        <div class="bg-white p-8 rounded-lg shadow-xl text-center">
-            <h3 class="text-xl font-bold mb-4">QR Code Produk</h3>
-            <p class="text-sm text-gray-600 mb-4">Scan untuk membuka halaman detail.</p>
-            <div id="qr-code-container" class="flex justify-center mb-6"></div>
-            <button class="close-modal bg-gray-500 text-white py-2 px-6 rounded hover:bg-gray-600">Tutup</button>
-        </div>
-    </div>
-
-    <div id="edit-modal" class="modal fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
-        <div class="bg-white p-8 rounded-lg shadow-xl w-full max-w-lg">
-            <h3 class="text-xl font-bold mb-4">Edit Detail Produk</h3>
-            <form id="edit-flower-form">
-                <input type="hidden" name="id">
-                <div class="space-y-4">
-                    <input type="text" name="nama" placeholder="Nama Produk" class="w-full p-3 border rounded-md" required>
-                    <input type="date" name="tanggal" class="w-full p-3 border rounded-md" required>
-                    <input type="text" name="asal_kampung" placeholder="Asal Produk" class="w-full p-3 border rounded-md">
-                    <textarea name="deskripsi" placeholder="Deskripsi Produk" class="w-full p-3 border rounded-md" rows="3"></textarea>
-                </div>
-                <div class="mt-6 flex justify-end gap-4">
-                     <button type="button" class="close-modal bg-gray-300 text-gray-800 py-2 px-6 rounded hover:bg-gray-400">Batal</button>
-                    <button type="submit" class="bg-violet-600 text-white font-bold py-2 px-6 rounded hover:bg-violet-700">Update Data</button>
-                </div>
-            </form>
-        </div>
-    </div>
+    <div id="qr-modal" class="modal fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4"> <div class="bg-white p-8 rounded-lg shadow-xl text-center"> <h3 class="text-xl font-bold mb-4">QR Code Produk</h3> <p class="text-sm text-gray-600 mb-4">Scan untuk membuka halaman detail.</p> <div id="qr-code-container" class="flex justify-center mb-6"></div> <button class="close-modal bg-gray-500 text-white py-2 px-6 rounded hover:bg-gray-600">Tutup</button> </div> </div>
+    <div id="edit-modal" class="modal fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4"> <div class="bg-white p-8 rounded-lg shadow-xl w-full max-w-lg"> <h3 class="text-xl font-bold mb-4">Edit Detail Produk</h3> <form id="edit-flower-form"> <input type="hidden" name="id"> <div class="space-y-4"> <input type="text" name="nama" placeholder="Nama Produk" class="w-full p-3 border rounded-md" required> <input type="date" name="tanggal" class="w-full p-3 border rounded-md" required> <input type="text" name="asal_kampung" placeholder="Asal Produk" class="w-full p-3 border rounded-md"> <textarea name="deskripsi" placeholder="Deskripsi Produk" class="w-full p-3 border rounded-md" rows="3"></textarea> </div> <div class="mt-6 flex justify-end gap-4"> <button type="button" class="close-modal bg-gray-300 text-gray-800 py-2 px-6 rounded hover:bg-gray-400">Batal</button> <button type="submit" class="bg-violet-600 text-white font-bold py-2 px-6 rounded hover:bg-violet-700">Update Data</button> </div> </form> </div> </div>
 
     <script>
     document.addEventListener('DOMContentLoaded', () => {
@@ -81,16 +56,6 @@
         const qrContainer = document.getElementById('qr-code-container');
         const editForm = document.getElementById('edit-flower-form');
         let allFlowers = [];
-
-        async function apiCall(payload) {
-            const res = await fetch(SCRIPT_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-            if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-            return await res.json();
-        }
 
         const fetchFlowers = async () => {
             try {
@@ -143,19 +108,19 @@
 
         const showSpinner = (button, text = 'Memproses...') => {
             button.disabled = true;
-            button.textContent = text;
+            const originalText = button.innerHTML;
+            button.innerHTML = `<svg class="animate-spin h-5 w-5 mr-3 inline-block" viewBox="0 0 24 24"></svg> ${text}`;
+            return originalText;
         };
-
         const hideSpinner = (button, originalText) => {
             button.disabled = false;
-            button.textContent = originalText;
+            button.innerHTML = originalText;
         };
 
         flowerForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const submitButton = e.target.querySelector('button[type="submit"]');
-            const originalButtonText = submitButton.textContent;
-            showSpinner(submitButton, 'Menyimpan...');
+            const originalButtonText = showSpinner(submitButton, 'Menyimpan...');
 
             let imagePayloads = [];
             for (let file of e.target.gambar.files) {
@@ -164,7 +129,6 @@
             }
 
             const formData = {
-                action: 'create',
                 nama: e.target.nama.value,
                 tanggal: e.target.tanggal.value,
                 deskripsi: e.target.deskripsi.value,
@@ -173,15 +137,15 @@
             };
 
             try {
-                const result = await apiCall(formData);
-                if (result.status === 'success') {
-                    alert(result.message);
+                await fetch(SCRIPT_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(formData) });
+                setTimeout(() => {
+                    alert('Data berhasil dikirim! Daftar akan diperbarui.');
                     flowerForm.reset();
                     fetchFlowers();
-                } else { throw new Error(result.message); }
+                    hideSpinner(submitButton, originalButtonText);
+                }, 3000); // Jeda untuk memberi waktu Google Sheet memproses
             } catch (error) {
-                alert('Gagal menyimpan data: ' + error.message);
-            } finally {
+                alert('Terjadi kesalahan. Coba lagi.');
                 hideSpinner(submitButton, originalButtonText);
             }
         });
@@ -195,13 +159,14 @@
 
             if (action === 'delete') {
                 if (confirm(`Yakin ingin menghapus produk ini?`)) {
-                    try {
-                        const result = await apiCall({ action: 'delete', id });
-                        if (result.status === 'success') {
-                            alert(result.message);
-                            fetchFlowers();
-                        } else { throw new Error(result.message); }
-                    } catch (error) { alert('Gagal menghapus: ' + error.message); }
+                    const originalText = showSpinner(button, 'Menghapus...');
+                    const payload = { action: 'delete', payload: { id } };
+                    await fetch(SCRIPT_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(payload) });
+                    setTimeout(() => {
+                        alert('Produk telah dihapus.');
+                        hideSpinner(button, originalText);
+                        fetchFlowers();
+                    }, 2000);
                 }
             }
 
@@ -227,22 +192,26 @@
 
         editForm.addEventListener('submit', async (e) => {
             e.preventDefault();
+            const submitButton = e.target.querySelector('button[type="submit"]');
+            const originalButtonText = showSpinner(submitButton, 'Mengupdate...');
+
             const payload = {
                 action: 'update',
-                id: e.target.id.value,
-                nama: e.target.nama.value,
-                tanggal: e.target.tanggal.value,
-                deskripsi: e.target.deskripsi.value,
-                asal_kampung: e.target.asal_kampung.value,
+                payload: {
+                    id: e.target.id.value,
+                    nama: e.target.nama.value,
+                    tanggal: e.target.tanggal.value,
+                    deskripsi: e.target.deskripsi.value,
+                    asal_kampung: e.target.asal_kampung.value,
+                }
             };
-            try {
-                const result = await apiCall(payload);
-                if (result.status === 'success') {
-                    alert(result.message);
-                    editModal.style.display = 'none';
-                    fetchFlowers();
-                } else { throw new Error(result.message); }
-            } catch (error) { alert('Gagal update: ' + error.message); }
+            await fetch(SCRIPT_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(payload) });
+            setTimeout(() => {
+                alert('Berhasil diupdate.');
+                editModal.style.display = 'none';
+                hideSpinner(submitButton, originalButtonText);
+                fetchFlowers();
+            }, 2000);
         });
 
         filterInput.addEventListener('input', (e) => {
