@@ -1,32 +1,42 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="id">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Detail Bunga</title>
+    <title>Detail Produk</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Lora:wght@500;600&display=swap" rel="stylesheet">
+
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css"/>
     <script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
     <style>
-        .swiper-button-next, .swiper-button-prev {
-            color: #8b5cf6; /* Warna violet */
-        }
-        .swiper-pagination-bullet-active {
-            background-color: #8b5cf6;
-        }
+        body { font-family: 'Inter', sans-serif; }
+        h1, h2 { font-family: 'Lora', serif; }
+        .swiper-button-next, .swiper-button-prev { color: #fff; --swiper-navigation-size: 32px; }
+        .swiper-pagination-bullet-active { background-color: #fff; }
     </style>
 </head>
-<body class="bg-gray-100">
+<body class="bg-gray-50">
 
-    <div id="loading" class="text-center p-10 text-xl">Memuat data bunga...</div>
+    <div id="loading" class="flex items-center justify-center min-h-screen">
+        <p class="text-lg text-gray-500">Memuat detail produk...</p>
+    </div>
 
-    <div id="flower-detail" class="container mx-auto max-w-4xl my-8 p-4 bg-white rounded-lg shadow-lg hidden">
+    <div id="flower-detail" class="hidden">
         </div>
 
     <script>
         document.addEventListener('DOMContentLoaded', async () => {
             // GANTI DENGAN URL GOOGLE APPS SCRIPT ANDA
             const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz8zJ45EKwGd-M-vUv12UqYRQVXXaAIpGvIoFF0rqL80ztuSeuA4pstNT9JAkoBJPGf2A/exec";
+
+            // SCRIPT UNTUK MENCEGAH TOMBOL BACK
+            history.pushState(null, null, location.href);
+            window.onpopstate = function () {
+                history.go(1);
+            };
 
             const flowerDetailContainer = document.getElementById('flower-detail');
             const loadingIndicator = document.getElementById('loading');
@@ -35,30 +45,26 @@
             const flowerId = params.get('id');
 
             if (!flowerId) {
-                loadingIndicator.innerHTML = '<p class="text-red-500">Error: ID Bunga tidak ditemukan di URL.</p>';
+                loadingIndicator.innerHTML = '<p class="text-red-500 text-center">Error: ID Produk tidak ditemukan di URL.</p>';
                 return;
             }
 
             try {
                 const response = await fetch(`${SCRIPT_URL}?action=readById&id=${flowerId}`);
-                if (!response.ok) {
-                    throw new Error('Data bunga tidak ditemukan.');
-                }
+                if (!response.ok) { throw new Error('Data produk tidak ditemukan.'); }
                 const flower = await response.json();
 
                 document.title = `Detail: ${flower.nama}`;
 
                 const images = JSON.parse(flower.gambar || '[]');
                 let imageHtml = '';
-
-                // **INI PERBAIKAN URL GAMBAR**
                 const driveBaseUrl = 'https://lh3.googleusercontent.com/d/';
 
                 if (images.length > 1) {
                     imageHtml = `
-                        <div class="swiper w-full rounded-lg">
+                        <div class="swiper w-full h-[50vh] md:h-full rounded-lg shadow-lg">
                             <div class="swiper-wrapper">
-                                ${images.map(imgId => `<div class="swiper-slide"><img src="${driveBaseUrl}${imgId}" alt="${flower.nama}" class="w-full h-96 object-cover"></div>`).join('')}
+                                ${images.map(imgId => `<div class="swiper-slide bg-gray-200"><img src="${driveBaseUrl}${imgId}" alt="${flower.nama}" class="w-full h-full object-cover"></div>`).join('')}
                             </div>
                             <div class="swiper-button-prev"></div>
                             <div class="swiper-button-next"></div>
@@ -66,23 +72,37 @@
                         </div>
                     `;
                 } else if (images.length === 1) {
-                    imageHtml = `<img src="${driveBaseUrl}${images[0]}" alt="${flower.nama}" class="w-full h-96 object-cover rounded-lg">`;
+                    imageHtml = `<div class="w-full h-[50vh] md:h-full rounded-lg shadow-lg overflow-hidden bg-gray-200"><img src="${driveBaseUrl}${images[0]}" alt="${flower.nama}" class="w-full h-full object-cover"></div>`;
                 } else {
-                    imageHtml = `<div class="w-full h-96 flex items-center justify-center bg-gray-200 rounded-lg"><p>Tidak ada gambar</p></div>`;
+                    imageHtml = `<div class="w-full h-[50vh] md:h-full rounded-lg shadow-lg flex items-center justify-center bg-gray-200"><p class="text-gray-500">Gambar tidak tersedia</p></div>`;
                 }
 
+                const displayDate = flower.tanggal ? new Date(flower.tanggal).toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : 'Tanggal tidak tercatat';
+
                 flowerDetailContainer.innerHTML = `
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-                        <div>
-                            ${imageHtml}
+                    <div class="md:grid md:grid-cols-2 md:min-h-screen">
+                        <div class="md:h-screen md:sticky top-0">
+                           ${imageHtml}
                         </div>
-                        <div>
-                            <h1 class="text-4xl font-extrabold text-gray-900 mb-2">${flower.nama}</h1>
-                            <p class="text-lg text-gray-500 mb-4">Asal: <span class="font-semibold">${flower.asal_kampung || '-'}</span></p>
-                            <p class="text-3xl font-bold text-violet-600 mb-6">Rp ${new Intl.NumberFormat('id-ID').format(flower.harga)}</p>
-                            <h2 class="text-xl font-semibold mb-2">Deskripsi</h2>
-                            <p class="text-gray-700 leading-relaxed">${flower.deskripsi || 'Tidak ada deskripsi.'}</p>
-                            <a href="./index.html" class="inline-block mt-6 text-violet-600 hover:text-violet-800">&larr; Kembali ke Katalog</a>
+
+                        <div class="p-8 md:p-12 lg:p-16">
+                            <h1 class="text-4xl md:text-5xl font-bold text-gray-900 leading-tight">${flower.nama}</h1>
+
+                            <div class="my-6 space-y-3 border-y border-gray-200 py-6">
+                                <div class="flex items-center text-gray-700">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mr-3 text-violet-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                                    <span>${displayDate}</span>
+                                </div>
+                                <div class="flex items-center text-gray-700">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mr-3 text-violet-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                                    <span>Asal: <strong>${flower.asal_kampung || 'Tidak diketahui'}</strong></span>
+                                </div>
+                            </div>
+
+                            <h2 class="text-2xl font-semibold text-gray-800 mb-3">Deskripsi Produk</h2>
+                            <div class="prose max-w-none text-gray-600 leading-relaxed">
+                                <p>${flower.deskripsi ? flower.deskripsi.replace(/\n/g, '</p><p>') : 'Tidak ada deskripsi untuk produk ini.'}</p>
+                            </div>
                         </div>
                     </div>
                 `;
@@ -93,6 +113,11 @@
                 if (images.length > 1) {
                     new Swiper('.swiper', {
                         loop: true,
+                        effect: 'fade',
+                        autoplay: {
+                            delay: 4000,
+                            disableOnInteraction: false,
+                        },
                         pagination: { el: '.swiper-pagination', clickable: true },
                         navigation: {
                             nextEl: '.swiper-button-next',
@@ -100,9 +125,8 @@
                         },
                     });
                 }
-
             } catch (error) {
-                loadingIndicator.innerHTML = `<p class="text-red-500">Error: ${error.message}</p>`;
+                loadingIndicator.innerHTML = `<p class="text-center text-red-500">Error: ${error.message}</p>`;
             }
         });
     </script>
